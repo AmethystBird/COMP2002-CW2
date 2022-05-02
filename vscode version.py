@@ -1,5 +1,6 @@
 from operator import truediv
 import random
+import copy
 
 class Module:
     #Object variables
@@ -67,24 +68,27 @@ modules = open("Modules.txt")
 
 #allModules = {}
 allModules = []
-dictionaryIndex = 0
+#dictionaryIndex = 0
 
 lectures = 1
 
-for moduleAttributes in modules:
-    moduleAttributesFormatted = moduleAttributes.split('|')
-    moduleCode = moduleAttributesFormatted[0]
-    lecturerName = moduleAttributesFormatted[1]
-    sessionsUnformatted = moduleAttributesFormatted[2]
-    labs = int(sessionsUnformatted)
-    
-    #print(moduleCode, lecturerName, lectures, labs)
-    conflictingModules = moduleAttributesFormatted[3]
-    conflictingModulesFormatted = conflictingModules.split(',')
-    
-    allModules.append(Module(moduleCode, lecturerName, conflictingModulesFormatted, labs))
-    #allModules[dictionaryIndex] = Module(moduleCode, lecturerName, conflictingModules, labs)
-    dictionaryIndex = dictionaryIndex + 1
+def LoadAllModules(allModules):
+    dictionaryIndex = 0
+    for moduleAttributes in modules:
+        moduleAttributesFormatted = moduleAttributes.split('|')
+        moduleCode = moduleAttributesFormatted[0]
+        lecturerName = moduleAttributesFormatted[1]
+        sessionsUnformatted = moduleAttributesFormatted[2]
+        labs = int(sessionsUnformatted)
+        
+        #print(moduleCode, lecturerName, lectures, labs)
+        conflictingModules = moduleAttributesFormatted[3]
+        conflictingModulesFormatted = conflictingModules.split(',')
+        
+        allModules.append(Module(moduleCode, lecturerName, conflictingModulesFormatted, labs))
+        #allModules[dictionaryIndex] = Module(moduleCode, lecturerName, conflictingModules, labs)
+        dictionaryIndex = dictionaryIndex + 1
+    return allModules
 
 #Create random timetable
 blankTimetable = [["LectureEmpty", "Lab1Empty", "Lab2Empty"],
@@ -130,7 +134,7 @@ randomTimetableConflicts = [[[], [], []],
                             [[], [], []],
                             [[], [], []]]
 
-def TimetableRandomiser(randomTimetable, allModules):
+def TimetableRandomiser(randomTimetable, allModules, randomTimetableConflicts):
     for module in allModules:
         #Overlap checks if slot is empty or not
         overlap = 0
@@ -160,21 +164,9 @@ def TimetableRandomiser(randomTimetable, allModules):
                     overlap = 1
                 #print("Lab: ", randomTimetable[randomLabSlotX][randomLabSlotY])
         
-    return randomTimetable
+    return randomTimetable, randomTimetableConflicts
 
-allModulesUse = allModules
-randomTimetable = blankTimetable.copy()
-randomTimetable = TimetableRandomiser(randomTimetable, allModulesUse)
-
-#Displays random timetable
-#for session in randomTimetable:
-#    print("Slot: ", session[0], session[1], session[2])
-
-#Displays random timetable
-for session in randomTimetable:
-    print("Slot: ", session[0], session[1], session[2])
-
-def TimetableFitness(randomTimetable):
+def TimetableFitness(randomTimetable, randomTimetableConflicts):
     #Precedence Constraints
     concurrenceConstraintsViolations = 0
     conflictsIndex = 0
@@ -229,12 +221,28 @@ def TimetableFitness(randomTimetable):
     fitnessValue = concurrenceConstraintsViolations * precedenceConstraintsViolations
     return fitnessValue
 
-concurrenceConstraintsViolations = TimetableFitness(randomTimetable)
-print("VIOLATIONS: ")
-print(concurrenceConstraintsViolations)
+#/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+allModules = LoadAllModules(allModules)
+allModulesUse = copy.deepcopy(allModules)
+randomTimetableConflictsUse = copy.deepcopy(randomTimetableConflicts)
 
-def Hillclimber(timetable, mutationSystem, iterations):
+randomTimetable = copy.deepcopy(blankTimetable)
+randomTimetable, randomTimetableConflictsUse = TimetableRandomiser(randomTimetable, allModulesUse, randomTimetableConflictsUse)
+
+#Displays random timetable
+for session in randomTimetable:
+    print("Slot: ", session[0], session[1], session[2])
+
+violations = TimetableFitness(randomTimetable, randomTimetableConflictsUse)
+print("VIOLATIONS: ")
+print(violations)
+#/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+def Hillclimber(timetable, violationsA, mutationSystem, iterations):
     print("Hillclimber():")
+
+    lastBestTimetable = timetable
+    lastBestViolations = violationsA
 
     #0 = SessionReplace
     if mutationSystem == 0:
@@ -244,7 +252,7 @@ def Hillclimber(timetable, mutationSystem, iterations):
     #1 = RuinAndRecreate
     if mutationSystem == 1:
         for i in range(iterations):
-            timetable, bestViolations = RuinAndRecreate(timetable)
+            timetable, bestViolations = RuinAndRecreate(timetable, violationsA)
         print("Hillclimber (Ruin & Recreate) Result: ", str(bestViolations))
 
 
@@ -252,24 +260,36 @@ def SessionReplace(timetableA):
     print("SessionReplace():")
     return timetableA
 
-def RuinAndRecreate(timetableA):
-    print("RuinAndRecreate():")
-    timetableB = blankTimetable
-    allModulesUse = allModules
-    timetableB = TimetableRandomiser(timetableB, allModulesUse)
+def RuinAndRecreate(randomTimetableA, violationsA):
+    #print("RuinAndRecreate():")
 
-    violationsA = TimetableFitness(timetableA)
-    violationsB = TimetableFitness(timetableB)
+    allModulesUse = copy.deepcopy(allModules)
+    randomTimetableBConflictsUse = copy.deepcopy(randomTimetableConflicts)
+
+    randomTimetableB = copy.deepcopy(blankTimetable)
+    randomTimetableB, randomTimetableBConflictsUse = TimetableRandomiser(randomTimetableB, allModulesUse, randomTimetableBConflictsUse)
+
+    violationsB = TimetableFitness(randomTimetableB, randomTimetableBConflictsUse)
+
+    #OG VERSION:
+    #timetableB = copy.deepcopy(blankTimetable)
+    #allModulesUse = copy.deepcopy(allModules)
+    #randomTimetableConflictsUse = copy.deepcopy(randomTimetableConflicts)
+    
+    #timetableB, randomTimetableConflictsUse = TimetableRandomiser(timetableB, allModulesUse, randomTimetableConflictsUse)
+
+    #violationsA = TimetableFitness(timetableA)
+    #violationsB = TimetableFitness(timetableB, randomTimetableConflictsUse)
 
     if violationsA < violationsB:
-        return timetableA, violationsA
+        return randomTimetableA, violationsA
     if violationsA > violationsB:
-        return timetableB, violationsB
+        return randomTimetableB, violationsB
     else:
         eitherTimetable = random.randint(0, 1)
         if eitherTimetable == 0:
-            return timetableA, violationsA
+            return randomTimetableA, violationsA
         if eitherTimetable == 1:
-            return timetableB, violationsB
+            return randomTimetableB, violationsB
 
-Hillclimber(randomTimetable, 1, 256)
+Hillclimber(randomTimetable, violations, 1, 128)
