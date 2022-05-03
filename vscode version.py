@@ -65,34 +65,33 @@ class Module:
 #    lab2 = "Empty"
 #    slots = [lecture, lab1, lab2]
 
+#Opens module text file
 modules = open("Modules.txt")
-
-
-#allModules = {}
 allModules = []
-#dictionaryIndex = 0
-
 lectures = 1
 
+#Extracts raw module information & converts it into Module objects
 def LoadAllModules(allModules):
-    dictionaryIndex = 0
+    arrayIndex = 0
     for moduleAttributes in modules:
         moduleAttributesFormatted = moduleAttributes.split('|')
+
+        #Module session information
         moduleCode = moduleAttributesFormatted[0]
         lecturerName = moduleAttributesFormatted[1]
         sessionsUnformatted = moduleAttributesFormatted[2]
         labs = int(sessionsUnformatted)
         
-        #print(moduleCode, lecturerName, lectures, labs)
+        #Module conflict information
         conflictingModules = moduleAttributesFormatted[3]
         conflictingModulesFormatted = conflictingModules.split(',')
         
+        #Information assigned to Module object
         allModules.append(Module(moduleCode, lecturerName, conflictingModulesFormatted, labs))
-        #allModules[dictionaryIndex] = Module(moduleCode, lecturerName, conflictingModules, labs)
-        dictionaryIndex = dictionaryIndex + 1
+        arrayIndex = arrayIndex + 1
     return allModules
 
-#Create random timetable
+#Blank timetable for filling later
 blankTimetable = [["LectureEmpty", "Lab1Empty", "Lab2Empty"],
                   ["LectureEmpty", "Lab1Empty", "Lab2Empty"],
                   ["LectureEmpty", "Lab1Empty", "Lab2Empty"],
@@ -114,7 +113,7 @@ blankTimetable = [["LectureEmpty", "Lab1Empty", "Lab2Empty"],
                   ["LectureEmpty", "Lab1Empty", "Lab2Empty"],
                   ["LectureEmpty", "Lab1Empty", "Lab2Empty"]]
 
-#Create random timetable
+#Array of associatedly timetabled module conflicts
 randomTimetableConflicts = [[[], [], []],
                             [[], [], []],
                             [[], [], []],
@@ -136,6 +135,7 @@ randomTimetableConflicts = [[[], [], []],
                             [[], [], []],
                             [[], [], []]]
 
+#Creates a randomly generated timetable from a blank timetable
 def TimetableRandomiser(randomTimetable, allModules, randomTimetableConflicts):
     for module in allModules:
         #Overlap checks if slot is empty or not
@@ -149,7 +149,6 @@ def TimetableRandomiser(randomTimetable, allModules, randomTimetableConflicts):
                 randomTimetable[randomLectureSlot][0] = module.moduleCode
                 randomTimetableConflicts[randomLectureSlot][0] = module.moduleConflicts
                 overlap = 1
-        #print("Lecture: ", randomTimetable[randomLectureSlot][0])
         
         overlap = 0
         while (overlap == 0):
@@ -164,17 +163,16 @@ def TimetableRandomiser(randomTimetable, allModules, randomTimetableConflicts):
                     randomTimetableConflicts[randomLabSlotX][randomLabSlotY] = module.moduleConflicts
                     module.labs = module.labs - 1
                     overlap = 1
-                #print("Lab: ", randomTimetable[randomLabSlotX][randomLabSlotY])
-        
+    
     return randomTimetable, randomTimetableConflicts
 
+#Determines correctness of timetable in terms of its practicality
 def TimetableFitness(randomTimetable, randomTimetableConflicts):
-    #Precedence Constraints
+    #Concurrence constraints
     concurrenceConstraintsViolations = 0
     conflictsIndex = 0
 
     for session in randomTimetable:
-
         #All slots
         slot0 = session[0]
         slot1 = session[1]
@@ -204,17 +202,17 @@ def TimetableFitness(randomTimetable, randomTimetableConflicts):
                 concurrenceConstraintsViolations = concurrenceConstraintsViolations + 1
                 break
     
-    #Precedence Constraints
+    #Precedence constraints
     precedenceConstraintsViolations = 0
     precedingLectures = []
-    #lecturesIndex = 0
 
     for session in randomTimetable:
-        precedingLectures.append(session[0]) # = session[0]
-        #lecturesIndex = lecturesIndex + 1
+        #Adds the currently indexed sessions to array of historically assigned
+        precedingLectures.append(session[0])
         lab1 = session[1]
         lab2 = session[2]
 
+        #Checks if sessions have already been assigned
         if lab1 not in precedingLectures:
             precedenceConstraintsViolations = precedenceConstraintsViolations + 1
         if lab2 not in precedingLectures:
