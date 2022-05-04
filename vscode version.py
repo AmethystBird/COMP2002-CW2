@@ -222,25 +222,29 @@ def TimetableFitness(randomTimetable, randomTimetableConflicts):
     return fitnessValue
 
 #/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#Creating copies of necessary objects & arrays
 allModules = LoadAllModules(allModules)
 allModulesUse = copy.deepcopy(allModules)
 randomTimetableConflictsUse = copy.deepcopy(randomTimetableConflicts)
-
 randomTimetable = copy.deepcopy(blankTimetable)
+
+#Randomising timetable & associated timetable conflicts
 randomTimetable, randomTimetableConflictsUse = TimetableRandomiser(randomTimetable, allModulesUse, randomTimetableConflictsUse)
 
 #Displays random timetable
 for session in randomTimetable:
     print("Slot: ", session[0], session[1], session[2])
 
+#Calculates the fitness of the randomised timetable & prints the value
 violations = TimetableFitness(randomTimetable, randomTimetableConflictsUse)
 print("VIOLATIONS: ")
 print(violations)
 #/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+#Generates timetables from contradictory ones so that they reflect requirements, through evolution
 def Hillclimber(timetable, violationsA, randomTimetableAConflicts, mutationSystem, iterations):
     print("Hillclimber():")
 
+    #Last set of results
     lastBestTimetable = timetable
     lastBestTimetableConflicts = randomTimetableAConflicts
     lastBestViolations = violationsA
@@ -267,11 +271,12 @@ def Hillclimber(timetable, violationsA, randomTimetableAConflicts, mutationSyste
         print("Hillclimber (Ruin & Recreate) Result: ", str(violationsA))
         return lastBestTimetable, lastBestViolations
 
+#Randomly exchanges two slots from a timetable
 def SessionReplace(randomTimetableA, randomTimetableAConflicts, violationsA):
     randomTimetableB = copy.deepcopy(randomTimetableA)
     randomTimetableBConflicts = copy.deepcopy(randomTimetableAConflicts)
 
-    #Type of slot to exchange
+    #Type of slot to exchange: lecture slots will not exchange with lab slots, since this is fundamentally logically contradictory
     slotType = random.randint(0, 2)
 
     if slotType == 0: #Slot 0: lecture slot
@@ -311,6 +316,7 @@ def SessionReplace(randomTimetableA, randomTimetableAConflicts, violationsA):
 
     violationsB = TimetableFitness(randomTimetableB, randomTimetableBConflicts)
 
+    #Compares the violations of the predecessor and successor timetables, returning the best one
     if violationsA < violationsB:
         return randomTimetableA, randomTimetableAConflicts, violationsA
     if violationsA > violationsB:
@@ -322,27 +328,17 @@ def SessionReplace(randomTimetableA, randomTimetableAConflicts, violationsA):
         if eitherTimetable == 1:
             return randomTimetableB, randomTimetableBConflicts, violationsB
 
+#Randomly generates a new timetable and compares against the predecessor timetable in order to better reflect requirements
 def RuinAndRecreate(randomTimetableA, violationsA):
-    #print("RuinAndRecreate():")
-
     allModulesUse = copy.deepcopy(allModules)
     randomTimetableBConflictsUse = copy.deepcopy(randomTimetableConflicts)
-
     randomTimetableB = copy.deepcopy(blankTimetable)
-    randomTimetableB, randomTimetableBConflictsUse = TimetableRandomiser(randomTimetableB, allModulesUse, randomTimetableBConflictsUse)
 
+    #Randomly generates new timetable & calculates fitness
+    randomTimetableB, randomTimetableBConflictsUse = TimetableRandomiser(randomTimetableB, allModulesUse, randomTimetableBConflictsUse)
     violationsB = TimetableFitness(randomTimetableB, randomTimetableBConflictsUse)
 
-    #OG VERSION:
-    #timetableB = copy.deepcopy(blankTimetable)
-    #allModulesUse = copy.deepcopy(allModules)
-    #randomTimetableConflictsUse = copy.deepcopy(randomTimetableConflicts)
-    
-    #timetableB, randomTimetableConflictsUse = TimetableRandomiser(timetableB, allModulesUse, randomTimetableConflictsUse)
-
-    #violationsA = TimetableFitness(timetableA)
-    #violationsB = TimetableFitness(timetableB, randomTimetableConflictsUse)
-
+    #Compares the violations of the predecessor and successor timetables, returning the best one
     if violationsA < violationsB:
         return randomTimetableA, violationsA
     if violationsA > violationsB:
@@ -354,14 +350,11 @@ def RuinAndRecreate(randomTimetableA, violationsA):
         if eitherTimetable == 1:
             return randomTimetableB, violationsB
 
-#timetableForSessionReplace = copy.deepcopy(randomTimetable)
-#timetableConflictsForSessionReplace = copy.deepcopy(randomTimetableConflictsUse)
-#timetableForRuinAndRecreate = copy.deepcopy(randomTimetable)
-#timetableConflictsForRuinAndRecreate = copy.deepcopy(randomTimetableConflictsUse)
-
+#Each successor timetable from Hillclimber in linear order, per algorithm type
 allBestSRViolationLists = [None] * 30
 allBestRARViolationLists = [None] * 30
 
+#30 attempts at generating ideal timetables for each type of algorithm
 for i in range(30):
     timetableForSessionReplace = copy.deepcopy(randomTimetable)
     timetableConflictsForSessionReplace = copy.deepcopy(randomTimetableConflictsUse)
@@ -375,6 +368,7 @@ for i in range(30):
     bestRARTimetable, bestRARViolations = Hillclimber(timetableForRuinAndRecreate, violations, timetableConflictsForRuinAndRecreate, 1, 500)
     allBestRARViolationLists[i] = bestRARViolations
 
+#Average values, maximum (best) values & minimum (worst) values
 averageSRFitness = sum(allBestSRViolationLists) / len(allBestSRViolationLists)
 averageRARFitness = sum(allBestRARViolationLists) / len(allBestRARViolationLists)
 maxSRFitnessAccuracy = min(allBestSRViolationLists)
@@ -384,5 +378,6 @@ minRARFitnessAccuracy = max(allBestRARViolationLists)
 
 print(averageSRFitness, maxSRFitnessAccuracy, minSRFitnessAccuracy, averageRARFitness, maxRARFitnessAccuracy, minSRFitnessAccuracy)
 
+#Plotting values
 allFitnessScores = [allBestSRViolationLists, allBestRARViolationLists]
 allFitnessScoresBoxPlot = plt.boxplot(allFitnessScores)
